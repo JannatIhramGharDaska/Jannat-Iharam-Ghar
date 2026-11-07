@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ShoppingBag, Search, Menu, X, Phone, ShieldCheck } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
@@ -9,6 +9,8 @@ export default function Navbar() {
   const { cart } = useCart();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [siteLogo, setSiteLogo] = useState('');
+  useEffect(() => { fetch('/api/media').then(r => r.json()).then(d => setSiteLogo(d.assets?.find((a: {slot:string;url:string}) => a.slot === 'site-logo')?.url || '')).catch(() => {}); }, []);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -34,8 +36,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-emerald-900 rounded-full flex items-center justify-center text-gold-500 font-bold text-xl border-2 border-gold-500">
-            ج
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-emerald-900 flex items-center justify-center text-gold-500 font-bold text-xl border-2 border-gold-500">
+            {siteLogo ? <img src={siteLogo} alt="Jannat Ihram Ghar logo" className="w-full h-full object-contain" /> : 'ج'}
           </div>
           <div>
             <span className="text-xl font-bold tracking-tight text-emerald-900 block leading-tight">

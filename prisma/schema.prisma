@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite" // Change to "postgresql" for production deployment (e.g., Supabase / Neon)
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -77,4 +77,15 @@ model OrderItem {
   variant   String? // Selected variant string
   quantity  Int
   price     Float
+}
+
+
+model MediaAsset {
+  id         String   @id @default(uuid())
+  slot       String   @unique
+  label      String
+  url        String
+  publicId   String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

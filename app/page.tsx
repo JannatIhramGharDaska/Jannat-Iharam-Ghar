@@ -2,8 +2,14 @@ import React from 'react';
 import Link from 'next/link';
 import { ShieldCheck, Truck, RefreshCw, Award, ArrowRight } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
+  const media = await prisma.mediaAsset.findMany();
+  const mediaBySlot = Object.fromEntries(media.map(item => [item.slot, item.url]));
+  const savedCategories = await prisma.category.findMany();
   // Mock data for initial presentation preview / DB fallback
   const featuredProducts = [
     { id: '1', sku: 'IHRAM-01', name: 'Premium Super Soft Cotton Ihram (1200g)', price: 3500, salePrice: 2999, stock: 25, images: '["https://images.unsplash.com/photo-1590076175571-4b5459efb099?auto=format&fit=crop&q=80&w=600"]', categoryName: 'Ihram' },
@@ -13,12 +19,12 @@ export default async function HomePage() {
   ];
 
   const categories = [
-    { title: "Ihram & Umrah", slug: "Ihram", img: "https://images.unsplash.com/photo-1590076175571-4b5459efb099?auto=format&fit=crop&q=80&w=300" },
-    { title: "Pure Ittar & Perfumes", slug: "Ittar", img: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=300" },
-    { title: "Sidr Honey & Talbeena", slug: "Honey", img: "https://images.unsplash.com/photo-1587049352847-81a56d773cae?auto=format&fit=crop&q=80&w=300" },
-    { title: "Jaye Namaz / Mats", slug: "Prayer Mats", img: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&q=80&w=300" },
-    { title: "Abayas & Stoles", slug: "Abayas", img: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=300" },
-    { title: "Islamic Caps & Accessories", slug: "Islamic Caps", img: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=300" },
+    { title: "Ihram & Umrah", slug: "Ihram", img: savedCategories.find(c => c.slug === "ihram")?.imageUrl || "https://images.unsplash.com/photo-1590076175571-4b5459efb099?auto=format&fit=crop&q=80&w=300" },
+    { title: "Pure Ittar & Perfumes", slug: "Ittar", img: savedCategories.find(c => c.slug === "ittar")?.imageUrl || "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=300" },
+    { title: "Sidr Honey & Talbeena", slug: "Honey", img: savedCategories.find(c => c.slug === "honey")?.imageUrl || "https://images.unsplash.com/photo-1587049352847-81a56d773cae?auto=format&fit=crop&q=80&w=300" },
+    { title: "Jaye Namaz / Mats", slug: "Prayer Mats", img: savedCategories.find(c => c.slug === "prayer-mats")?.imageUrl || "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&q=80&w=300" },
+    { title: "Abayas & Stoles", slug: "Abayas", img: savedCategories.find(c => c.slug === "abayas")?.imageUrl || "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=300" },
+    { title: "Islamic Caps & Accessories", slug: "Islamic Caps", img: savedCategories.find(c => c.slug === "islamic-caps")?.imageUrl || "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=300" },
   ];
 
   return (
@@ -49,7 +55,7 @@ export default async function HomePage() {
           <div className="relative flex justify-center">
             <div className="w-72 h-72 sm:w-96 sm:h-96 rounded-full border-4 border-gold-500/30 overflow-hidden shadow-2xl relative">
               <img
-                src="https://images.unsplash.com/photo-1590076175571-4b5459efb099?auto=format&fit=crop&q=80&w=800"
+                src={mediaBySlot["hero-banner"] || "https://images.unsplash.com/photo-1590076175571-4b5459efb099?auto=format&fit=crop&q=80&w=800"}
                 alt="Jannat Ihram Ghar Banner"
                 className="w-full h-full object-cover"
               />
