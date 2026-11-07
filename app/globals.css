@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #FDFBF7;
+  color: #1F2937;
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 25%, #B38728 50%, #FBF5B7 75%, #AA771C 100%);
+}
+
+.emerald-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  transition: all 0.3s ease;
+}
+
+.emerald-card:hover {
+  border-color: #D4AF37;
+  box-shadow: 0 10px 25px -5px rgba(4, 93, 60, 0.1);
+}
