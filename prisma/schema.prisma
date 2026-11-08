@@ -1,3 +1,4 @@
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -11,7 +12,7 @@ generator client {
 model Admin {
   id        String   @id @default(uuid())
   username  String   @unique
-  password  String   // Hashed bcrypt password
+  password  String
   createdAt DateTime @default(now())
 }
 
@@ -31,42 +32,48 @@ model Product {
   price       Float
   salePrice   Float?
   stock       Int           @default(0)
-  images      String        // JSON Array stringified: ["img1.jpg", "img2.jpg"]
+  stockMode   String        @default("STANDARD")
+  images      String
   categoryId  String
   category    Category      @relation(fields: [categoryId], references: [id])
   variants    Variant[]
   orderItems  OrderItem[]
   featured    Boolean       @default(false)
+  isArchived  Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
 
 model Variant {
   id        String  @id @default(uuid())
-  name      String  // e.g., "Size: XL", "Color: Emerald Green", "Weight: 500g"
-  price     Float?  // Overrides base product price if present
+  name      String
+  price     Float?
   stock     Int     @default(0)
+  sizeMl    Float?
+  images    String  @default("[]")
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  orderNumber     String      @unique
-  customerName    String
-  customerPhone   String
-  deliveryAddress String
-  city            String
-  orderNotes      String?
-  paymentMethod   String      @default("Cash on Delivery (COD)")
-  subtotal        Float
-  deliveryFee     Float       @default(200) // PKR standard delivery flat fee
-  discount        Float       @default(0)
-  total           Float
-  status          String      @default("Pending") // Pending, Confirmed, Processing, Shipped, Delivered, Cancelled
-  items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String      @id @default(uuid())
+  orderNumber       String      @unique
+  customerName      String
+  customerPhone     String
+  deliveryAddress   String
+  city              String
+  orderNotes        String?
+  paymentMethod     String      @default("Cash on Delivery (COD)")
+  paymentScreenshot String?
+  paymentStatus     String      @default("Pending")
+  subtotal          Float
+  deliveryFee       Float       @default(200)
+  discount          Float       @default(0)
+  total             Float
+  status            String      @default("Pending")
+  items             OrderItem[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model OrderItem {
@@ -75,11 +82,10 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId String
   product   Product @relation(fields: [productId], references: [id])
-  variant   String? // Selected variant string
+  variant   String?
   quantity  Int
   price     Float
 }
-
 
 model MediaAsset {
   id         String   @id @default(uuid())
@@ -90,7 +96,6 @@ model MediaAsset {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
-
 
 model SiteDesign {
   id        String   @id @default("main")

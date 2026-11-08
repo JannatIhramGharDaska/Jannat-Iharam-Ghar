@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Product" ADD COLUMN     "isArchived" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "stockMode" TEXT NOT NULL DEFAULT 'STANDARD';
+
+-- AlterTable
+ALTER TABLE "Variant" ADD COLUMN     "images" TEXT NOT NULL DEFAULT '[]',
+ADD COLUMN     "sizeMl" DOUBLE PRECISION;
