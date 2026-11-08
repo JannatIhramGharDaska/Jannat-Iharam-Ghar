@@ -23,7 +23,7 @@ export default function CartPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl font-bold text-emerald-950 mb-6">Shopping Cart</h1>
+      <h1 className="text-2xl font-bold text-emerald-950 mb-2">Shopping Cart</h1><p className="text-sm text-gray-500 mb-6">Bundle your selected products together — all cart items will be placed as one order at checkout.</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
@@ -73,7 +73,7 @@ export default function CartPage() {
             <span>PKR {cartTotal.toLocaleString()}</span>
           </div>
 
-          <p className="text-[11px] text-gray-500 text-center">Payment Method: Cash on Delivery (COD)</p>
+          <p className="text-[11px] text-gray-500 text-center">Choose COD, JazzCash, Easypaisa or Bank Transfer at checkout</p>
 
           <Link href="/checkout" className="w-full bg-emerald-900 hover:bg-emerald-950 text-gold-400 font-bold py-3 rounded-md text-sm transition-colors flex items-center justify-center gap-2">
             Proceed to Checkout <ArrowRight className="w-4 h-4" />

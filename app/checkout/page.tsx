@@ -14,14 +14,14 @@ export default function CheckoutPage() {
     deliveryAddress: '',
     city: 'Lahore',
     orderNotes: '',
+    paymentMethod: 'Cash on Delivery (COD)',
   });
 
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
 
   const pakistaniCities = [
-    "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad", 
-    "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala", "Hyderabad", "Abbottabad"
+    "Abbottabad","Ahmadpur East","Arifwala","Attock","Badin","Bahawalnagar","Bahawalpur","Bannu","Bhalwal","Bhakkar","Burewala","Chakwal","Charsadda","Chiniot","Daska","Dera Ghazi Khan","Dera Ismail Khan","Faisalabad","Ferozewala","Ghotki","Gojra","Gujranwala","Gujrat","Gwadar","Hafizabad","Haripur","Hyderabad","Islamabad","Jacobabad","Jaranwala","Jhang","Jhelum","Kamoke","Karachi","Kasur","Khairpur","Khanewal","Khanpur","Kohat","Kot Addu","Lahore","Larkana","Mandi Bahauddin","Mardan","Mingora","Mirpur AJK","Multan","Murree","Muzaffargarh","Nawabshah","Nowshera","Okara","Pakpattan","Peshawar","Quetta","Rahim Yar Khan","Rawalpindi","Sahiwal","Sargodha","Sheikhupura","Shikarpur","Sialkot","Sukkur","Swabi","Tando Adam","Tando Allahyar","Taxila","Thatta","Timergara","Toba Tek Singh","Vehari","Wah Cantt","Other"
   ];
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
@@ -39,6 +39,7 @@ export default function CheckoutPage() {
       deliveryAddress: formData.deliveryAddress,
       city: formData.city,
       orderNotes: formData.orderNotes,
+      paymentMethod: formData.paymentMethod,
       subtotal: cartSubtotal,
       deliveryFee: deliveryFee,
       total: cartTotal,
@@ -79,7 +80,8 @@ export default function CheckoutPage() {
             <p><strong>Name:</strong> {completedOrder.customerName}</p>
             <p><strong>Phone:</strong> {completedOrder.customerPhone}</p>
             <p><strong>Address:</strong> {completedOrder.deliveryAddress}, {completedOrder.city}</p>
-            <p><strong>Total Payable (COD):</strong> PKR {completedOrder.total.toLocaleString()}</p>
+            <p><strong>Payment:</strong> {completedOrder.paymentMethod}</p>
+            <p><strong>Total Payable:</strong> PKR {completedOrder.total.toLocaleString()}</p>
           </div>
 
           <div className="space-y-3">
@@ -134,15 +136,8 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">City *</label>
-              <select
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-emerald-900"
-              >
-                {pakistaniCities.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <input list="pakistani-cities" required value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Type to search your city" className="w-full p-2.5 border border-gray-300 rounded text-sm focus:outline-emerald-900" />
+              <datalist id="pakistani-cities">{pakistaniCities.map((c) => <option key={c} value={c} />)}</datalist>
             </div>
           </div>
 
@@ -171,21 +166,17 @@ export default function CheckoutPage() {
 
           <div className="pt-4 border-t">
             <label className="font-bold text-xs text-gray-700 block mb-2">Payment Method</label>
-            <div className="bg-emerald-50 border border-emerald-300 p-3 rounded-md flex items-center gap-3">
-              <Truck className="w-5 h-5 text-emerald-900" />
-              <div>
-                <p className="text-xs font-bold text-emerald-950">Cash on Delivery (COD)</p>
-                <p className="text-[11px] text-gray-600">Pay cash directly to courier rider upon receiving your parcel.</p>
-              </div>
-            </div>
+            <select value={formData.paymentMethod} onChange={e=>setFormData({...formData,paymentMethod:e.target.value})} className="w-full border rounded p-3 text-sm">
+              <option>Cash on Delivery (COD)</option><option>JazzCash (Manual Transfer)</option><option>Easypaisa (Manual Transfer)</option><option>Bank Transfer</option>
+            </select>
+            {formData.paymentMethod !== 'Cash on Delivery (COD)' && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 mt-2">Online/manual transfer selected. Store payment details will be confirmed with you by phone or WhatsApp before order processing. Do not send payment until verified.</p>}
           </div>
-
           <button
             type="submit"
             disabled={submitting}
             className="w-full bg-emerald-900 hover:bg-emerald-950 text-gold-400 font-bold py-3.5 rounded-md text-sm transition-colors mt-4"
           >
-            {submitting ? 'Processing Order...' : 'Confirm Cash on Delivery Order'}
+            {submitting ? 'Processing Order...' : 'Place Order'}
           </button>
         </form>
 

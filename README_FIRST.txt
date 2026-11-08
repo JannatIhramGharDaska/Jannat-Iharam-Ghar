@@ -50,3 +50,40 @@ DATABASE NOTE
 - This project uses a fresh PostgreSQL schema. The old SQLite file was not present in the supplied ZIPs and the owner confirmed there is no existing shop data to migrate.
 - Do not run destructive database commands against a live database.
 - Production build could not be verified in the review environment because npm package installation timed out; run the build on Netlify after reviewing the environment variables.
+
+
+WEBSITE VISUAL CUSTOMIZER (NEW)
+--------------------------------
+After signing in to /admin/dashboard, open the "Website Editor" tab.
+You can edit homepage hero text, button labels, four feature highlights,
+brand colors, and show/hide the Categories and Featured Products sections.
+Use Desktop/Mobile preview, Undo/Redo, Save Draft, and Publish to Live Website.
+
+Draft changes are stored in the PostgreSQL SiteDesign table and do not appear
+on the public site until you choose Publish. The first editor release controls
+these homepage design settings; it is not a freeform pixel-by-pixel Canva editor.
+Use the existing Image Management tab to replace the logo and homepage banner.
+
+A new Prisma migration is included:
+prisma/migrations/20261108000000_site_design/migration.sql
+Deploy the code and migration together. Do not reset the database.
+
+
+LATEST UPDATE NOTES (NOVEMBER 2026)
+----------------------------------
+- Removed only the top green announcement strip. Main logo/search/cart and category navigation remain.
+- Shop product cards now use Shop Now; product detail pages have Add to Cart and Place Order.
+- Checkout supports COD, JazzCash manual transfer, Easypaisa manual transfer and Bank Transfer selection.
+  Manual/online transfer is not an automatic gateway integration; confirm merchant details before taking payment.
+- City field has searchable suggestions for many Pakistani cities and accepts manually typed city names.
+- Admin Orders now displays full delivery address, city, selected payment method, order items, quantities, item amounts, notes and total.
+- Admin Products allows editing product details/price/sale price/stock/category/image URL and choosing featured products.
+- Admin Products includes add/delete category controls. Categories containing products cannot be deleted until products are moved/deleted.
+- Homepage categories and featured products are now sourced from your database rather than hardcoded sample cards.
+- Contact details updated: +92 345 4681308, Jannat Ihram Ghar Gali Darziyon Wali Machli Bazar Daska, jannatihramghar@gmail.com; online orders 24/7.
+- Cart items are bundled into one order when checkout is submitted.
+
+IMPORTANT
+---------
+This ZIP does not contain .env or node_modules. Keep your existing .env file private and copy it into the project folder locally.
+No database schema migration is included in this update. Test locally before pushing to GitHub or deploying to Netlify.

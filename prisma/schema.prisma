@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -88,4 +89,12 @@ model MediaAsset {
   publicId   String   @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+
+model SiteDesign {
+  id        String   @id @default("main")
+  draft     Json
+  published Json
+  updatedAt DateTime @updatedAt
 }

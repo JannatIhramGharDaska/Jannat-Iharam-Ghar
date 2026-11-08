@@ -1,4 +1,4 @@
-export const WHATSAPP_NUMBER = "923008615743"; // Replace with your actual WhatsApp Business Number
+export const WHATSAPP_NUMBER = "923454681308"; // Replace with your actual WhatsApp Business Number
 
 export function formatWhatsAppMessage(order: {
   orderNumber: string;
@@ -8,6 +8,7 @@ export function formatWhatsAppMessage(order: {
   city: string;
   items: Array<{ name: string; variant?: string; quantity: number; price: number }>;
   total: number;
+  paymentMethod?: string;
 }) {
   let text = `*NEW ORDER PLACED - Jannat Ihram Ghar*\n`;
   text += `--------------------------------------\n`;
@@ -22,7 +23,7 @@ export function formatWhatsAppMessage(order: {
     text += `${i + 1}. ${item.name}${varText} x ${item.quantity} = PKR ${item.price * item.quantity}\n`;
   });
 
-  text += `\n*Total Payable:* PKR ${order.total.toLocaleString()} (Cash on Delivery)\n`;
+  text += `\n*Total Payable:* PKR ${order.total.toLocaleString()} (${order.paymentMethod || "Cash on Delivery (COD)"})\n`;
   text += `--------------------------------------\n`;
   text += `Thank you for shopping with Jannat Ihram Ghar!`;
 

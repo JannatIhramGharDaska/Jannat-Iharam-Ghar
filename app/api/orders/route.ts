@@ -106,6 +106,7 @@ export async function POST(req: Request) {
           deliveryAddress,
           city,
           orderNotes: b.orderNotes ? String(b.orderNotes) : null,
+          paymentMethod: String(b.paymentMethod || 'Cash on Delivery (COD)'),
           subtotal,
           deliveryFee,
           total: subtotal + deliveryFee,

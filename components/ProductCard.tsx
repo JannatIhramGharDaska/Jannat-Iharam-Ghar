@@ -2,8 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShoppingBag } from 'lucide-react';
-import { useCart } from '@/lib/cart-context';
+
 
 export interface ProductProps {
   id: string;
@@ -17,23 +16,9 @@ export interface ProductProps {
 }
 
 export default function ProductCard({ product }: { product: ProductProps }) {
-  const { addToCart } = useCart();
   const imageList = JSON.parse(product.images || '["/images/placeholder.jpg"]');
   const primaryImage = imageList[0] || '/images/placeholder.jpg';
 
-  const handleQuickAdd = (e: React.MouseEvent) => {
-    e.preventDefault();
-    addToCart({
-      id: `${product.id}-default`,
-      productId: product.id,
-      sku: product.sku,
-      name: product.name,
-      price: product.salePrice || product.price,
-      image: primaryImage,
-      quantity: 1,
-    });
-    alert(`${product.name} added to your cart!`);
-  };
 
   return (
     <div className="emerald-card rounded-lg overflow-hidden flex flex-col justify-between group">
@@ -78,18 +63,9 @@ export default function ProductCard({ product }: { product: ProductProps }) {
           )}
         </div>
 
-        <button
-          onClick={handleQuickAdd}
-          disabled={product.stock <= 0}
-          className={`w-full py-2 px-3 rounded-md font-medium text-xs flex items-center justify-center gap-1.5 transition-colors ${
-            product.stock > 0 
-              ? 'bg-emerald-900 text-gold-400 hover:bg-emerald-950' 
-              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          <ShoppingBag className="w-3.5 h-3.5" />
-          {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-        </button>
+        <Link href={`/product/${product.id}`} className="w-full py-2.5 px-3 rounded-md font-semibold text-xs flex items-center justify-center bg-emerald-900 text-white hover:bg-emerald-950 transition-colors">
+          Shop Now
+        </Link>
       </div>
     </div>
   );

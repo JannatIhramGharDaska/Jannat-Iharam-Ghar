@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ShoppingBag, Search, Menu, X, Phone, ShieldCheck } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 
 export default function Navbar() {
@@ -21,17 +21,6 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
-      {/* Top Banner */}
-      <div className="bg-emerald-900 text-gold-400 px-4 py-1.5 text-xs text-center font-medium flex justify-between items-center max-w-7xl mx-auto sm:px-6">
-        <span className="flex items-center gap-1.5">
-          <ShieldCheck className="w-4 h-4" /> 100% Original Islamic & Sunnah Products
-        </span>
-        <span className="hidden md:inline">Cash on Delivery Available Across Pakistan</span>
-        <a href="tel:+923001234567" className="flex items-center gap-1 hover:underline">
-          <Phone className="w-3 h-3" /> Helpline: 0300-1234567
-        </a>
-      </div>
-
       {/* Main Nav */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         {/* Brand Logo */}

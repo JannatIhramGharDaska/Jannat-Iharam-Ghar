@@ -48,19 +48,19 @@ export default function Footer() {
           <ul className="space-y-2.5 text-xs">
             <li className="flex items-start gap-2">
               <MapPin className="w-4 h-4 text-gold-400 shrink-0 mt-0.5" />
-              <span>Jannat Ihram Ghar, Main Bazaar / Commercial Market, Pakistan</span>
+              <span>Jannat Ihram Ghar, Gali Darziyon Wali, Machli Bazar, Daska</span>
             </li>
             <li className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-gold-400 shrink-0" />
-              <span>+92 300 1234567 / +92 321 7654321</span>
+              <span>+92 345 4681308</span>
             </li>
             <li className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-gold-400 shrink-0" />
-              <span>orders@jannatihramghar.pk</span>
+              <span>jannatihramghar@gmail.com</span>
             </li>
             <li className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gold-400 shrink-0" />
-              <span>Monday - Saturday: 10:00 AM - 10:00 PM</span>
+              <span>Online Orders: 24/7</span>
             </li>
           </ul>
         </div>
@@ -68,7 +68,7 @@ export default function Footer() {
 
       <div className="max-w-7xl mx-auto px-6 border-t border-emerald-900 pt-4 text-center text-xs text-gray-400 flex flex-col sm:flex-row justify-between items-center gap-2">
         <p>© {new Date().getFullYear()} Jannat Ihram Ghar. All Rights Reserved.</p>
-        <p className="text-gray-400">Cash on Delivery | Delivered Nationwide in 2-4 Days</p>
+        <p className="text-gray-400">Online Orders Open 24/7 | Cash on Delivery Available</p>
       </div>
     </footer>
   );
