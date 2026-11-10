@@ -18,7 +18,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    const { status, paymentStatus } = body;
+    const { status, paymentStatus, trackingNumber, shippingProvider } = body;
 
     const orderExists = await prisma.order.findUnique({
       where: { id },
@@ -38,6 +38,8 @@ export async function PATCH(
     const data: {
       status?: string;
       paymentStatus?: string;
+      trackingNumber?: string | null;
+      shippingProvider?: string | null;
     } = {};
 
     if (status !== undefined) {
@@ -84,6 +86,28 @@ export async function PATCH(
       }
 
       data.paymentStatus = paymentStatus;
+    }
+
+    if (
+      trackingNumber !== undefined ||
+      shippingProvider !== undefined
+    ) {
+      if (
+        typeof trackingNumber !== 'string' ||
+        !trackingNumber.trim() ||
+        trackingNumber.length > 100 ||
+        typeof shippingProvider !== 'string' ||
+        !shippingProvider.trim() ||
+        shippingProvider.length > 100
+      ) {
+        return NextResponse.json(
+          { error: 'Valid tracking number and shipping provider are required.' },
+          { status: 400 }
+        );
+      }
+
+      data.trackingNumber = trackingNumber.trim();
+      data.shippingProvider = shippingProvider.trim();
     }
 
     if (Object.keys(data).length === 0) {

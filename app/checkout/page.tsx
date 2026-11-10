@@ -46,6 +46,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
   const [copiedAccount, setCopiedAccount] = useState('');
+  const [copiedOrderNumber, setCopiedOrderNumber] = useState(false);
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
 
   const codCharges =
@@ -197,14 +198,51 @@ export default function CheckoutPage() {
             JazakAllah! Order Placed Successfully
           </h1>
 
-          <p className="text-sm text-gray-600 mb-4">
-            Your Order ID is{' '}
-            <strong className="text-emerald-900">{completedOrder.orderNumber}</strong>.
-          </p>
+          <div className="bg-white p-4 rounded-lg border text-left space-y-3 mb-6">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Your Order Number</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <strong className="text-lg text-emerald-900 break-all">
+                  {completedOrder.orderNumber}
+                </strong>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(completedOrder.orderNumber);
+                      setCopiedOrderNumber(true);
+                      setTimeout(() => setCopiedOrderNumber(false), 2000);
+                    } catch {
+                      alert('Order number copy nahi ho saka. Please manually save kar lein.');
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded border border-emerald-800 px-3 py-2 text-xs font-semibold text-emerald-900"
+                >
+                  {copiedOrderNumber ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedOrderNumber ? 'Copied!' : 'Copy Order Number'}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 space-y-1">
+              <p className="font-bold">Important — Save Your Order Details</p>
+              <p>
+                Please save your Order Number and remember the phone number
+                you entered at checkout. You will need both to track your shipment.
+              </p>
+              <p><strong>Registered Phone Number:</strong> {completedOrder.customerPhone}</p>
+            </div>
+
+            <a
+              href="/track-order"
+              className="block w-full bg-emerald-900 hover:bg-emerald-950 text-white text-center font-bold py-3 rounded-md text-sm transition-colors"
+            >
+              Track Your Order
+            </a>
+          </div>
 
           <div className="bg-white p-4 rounded-lg border text-left text-xs space-y-2 mb-6">
             <p><strong>Name:</strong> {completedOrder.customerName}</p>
-            <p><strong>Phone:</strong> {completedOrder.customerPhone}</p>
             <p><strong>Address:</strong> {completedOrder.deliveryAddress}, {completedOrder.city}</p>
             <p><strong>Payment:</strong> {completedOrder.paymentMethod}</p>
             <p><strong>Total Payable:</strong> PKR {completedOrder.total.toLocaleString()}</p>

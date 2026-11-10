@@ -71,6 +71,8 @@ model Order {
   discount          Float       @default(0)
   total             Float
   status            String      @default("Pending")
+  trackingNumber  String?
+  shippingProvider String?
   items             OrderItem[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt

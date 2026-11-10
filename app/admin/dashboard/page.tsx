@@ -34,6 +34,8 @@ type Order = {
   deliveryFee: number;
   total: number;
   status: string;
+  trackingNumber?: string | null;
+  shippingProvider?: string | null;
   createdAt: string;
   items: Array<{
     id: string;
@@ -59,6 +61,8 @@ type Review = {
   rating: number;
   comment: string;
   status: string;
+  trackingNumber?: string | null;
+  shippingProvider?: string | null;
   createdAt: string;
   product: { name: string };
   orderItem: {
@@ -79,6 +83,8 @@ export default function Dashboard() {
   const [reviewApiReady, setReviewApiReady] = useState(false);
   const [reviewBusy, setReviewBusy] = useState<string | null>(null);
   const [reviewLinks, setReviewLinks] = useState<Record<string, string>>({});
+  const [shippingDrafts, setShippingDrafts] = useState<Record<string, { trackingNumber: string; shippingProvider: string }>>({});
+  const [shippingBusy, setShippingBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -203,6 +209,47 @@ export default function Dashboard() {
     }
 
     await load();
+  }
+
+  async function saveShippingDetails(order: Order) {
+    const draft = shippingDrafts[order.id] || {
+      trackingNumber: order.trackingNumber || '',
+      shippingProvider: order.shippingProvider || '',
+    };
+
+    if (!draft.trackingNumber.trim() || !draft.shippingProvider.trim()) {
+      setError('Please enter both tracking number and shipping provider.');
+      return;
+    }
+
+    setShippingBusy(order.id);
+    setError('');
+
+    try {
+      const response = await fetch('/api/orders/' + order.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackingNumber: draft.trackingNumber.trim(),
+          shippingProvider: draft.shippingProvider.trim(),
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Could not save shipping details.');
+      }
+
+      setShippingDrafts((previous) => ({
+        ...previous,
+        [order.id]: draft,
+      }));
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save shipping details.');
+    } finally {
+      setShippingBusy(null);
+    }
   }
 
   async function updatePaymentStatus(id: string, value: string) {
@@ -531,6 +578,7 @@ export default function Dashboard() {
                       'Items',
                       'Total',
                       'Order Status',
+                      'Shipping Details',
                     ].map((x) => (
                       <th key={x} className="p-3">
                         {x}
@@ -708,7 +756,7 @@ export default function Dashboard() {
                           PKR {o.total.toLocaleString()}
                         </td>
 
-                        <td className="p-3">
+                        <td className="p-3 min-w-32">
                           <select
                             value={o.status}
                             onChange={(e) => status(o.id, e.target.value)}
@@ -725,6 +773,63 @@ export default function Dashboard() {
                               <option key={v}>{v}</option>
                             ))}
                           </select>
+                        </td>
+
+                        <td className="p-3 min-w-56">
+                          <div className="space-y-2">
+                            <select
+                              value={shippingDrafts[o.id]?.shippingProvider ?? o.shippingProvider ?? ''}
+                              onChange={(e) =>
+                                setShippingDrafts((previous) => ({
+                                  ...previous,
+                                  [o.id]: {
+                                    trackingNumber: previous[o.id]?.trackingNumber ?? o.trackingNumber ?? '',
+                                    shippingProvider: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="border rounded p-2 w-full"
+                              aria-label={`Shipping provider for ${o.orderNumber}`}
+                            >
+                              <option value="">Select courier</option>
+                              {['TCS', 'Leopards', 'M&P', 'PostEx', 'Pakistan Post', 'Other'].map((provider) => (
+                                <option key={provider} value={provider}>{provider}</option>
+                              ))}
+                            </select>
+
+                            <input
+                              type="text"
+                              value={shippingDrafts[o.id]?.trackingNumber ?? o.trackingNumber ?? ''}
+                              onChange={(e) =>
+                                setShippingDrafts((previous) => ({
+                                  ...previous,
+                                  [o.id]: {
+                                    trackingNumber: e.target.value,
+                                    shippingProvider: previous[o.id]?.shippingProvider ?? o.shippingProvider ?? '',
+                                  },
+                                }))
+                              }
+                              placeholder="Tracking number"
+                              maxLength={100}
+                              className="border rounded p-2 w-full"
+                              aria-label={`Tracking number for ${o.orderNumber}`}
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => saveShippingDetails(o)}
+                              disabled={shippingBusy === o.id}
+                              className="bg-emerald-800 text-white rounded px-3 py-2 text-xs w-full disabled:opacity-50"
+                            >
+                              {shippingBusy === o.id ? 'Saving...' : 'Save Tracking Details'}
+                            </button>
+
+                            {o.trackingNumber && o.shippingProvider && (
+                              <p className="text-xs text-emerald-800">
+                                Saved: {o.shippingProvider} · {o.trackingNumber}
+                              </p>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
