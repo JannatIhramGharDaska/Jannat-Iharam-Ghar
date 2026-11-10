@@ -54,7 +54,19 @@ type Asset = {
   url: string;
 };
 
-type Tab = 'orders' | 'products' | 'media' | 'design';
+type Review = {
+  id: string;
+  rating: number;
+  comment: string;
+  status: string;
+  createdAt: string;
+  product: { name: string };
+  orderItem: {
+    order: { orderNumber: string; customerName: string };
+  };
+};
+
+type Tab = 'orders' | 'products' | 'media' | 'design' | 'reviews';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -63,6 +75,10 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewApiReady, setReviewApiReady] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState<string | null>(null);
+  const [reviewLinks, setReviewLinks] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -73,6 +89,8 @@ export default function Dashboard() {
     stock: '0',
     category: 'Ihram',
     description: '',
+    enableVariants: false,
+    variants: [{ name: '', price: '' }],
   });
 
   const [categories, setCategories] = useState<
@@ -83,7 +101,7 @@ export default function Dashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const [mediaSlot, setMediaSlot] = useState('site-logo');
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaBusy, setMediaBusy] = useState(false);
 
   async function load() {
@@ -108,6 +126,20 @@ export default function Dashboard() {
       setProducts(b.products || []);
       setAssets(c.assets || []);
       setCategories(d.categories || []);
+      // Review listing is a separate admin endpoint; other dashboard data
+      // remains available even if it has not been installed yet.
+      try {
+        const reviewResponse = await fetch('/api/reviews/admin', {
+          cache: 'no-store',
+        });
+        setReviewApiReady(reviewResponse.ok);
+        if (reviewResponse.ok) {
+          const reviewData = await reviewResponse.json();
+          setReviews(reviewData.reviews || []);
+        }
+      } catch {
+        // The review panel will be available after its API is installed.
+      }
     } catch {
       setError('Could not load dashboard data.');
     } finally {
@@ -126,7 +158,15 @@ export default function Dashboard() {
     const r = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        stockMode: 'STANDARD',
+        variants: form.enableVariants
+          ? form.variants.filter(
+              (variant) => variant.name.trim() !== '' && variant.price !== ''
+            )
+          : [],
+      }),
     });
 
     const d = await r.json();
@@ -143,6 +183,8 @@ export default function Dashboard() {
       stock: '0',
       category: 'Ihram',
       description: '',
+      enableVariants: false,
+      variants: [{ name: '', price: '' }],
     });
 
     await load();
@@ -184,7 +226,7 @@ export default function Dashboard() {
   async function uploadMedia(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!mediaFile) {
+    if (!mediaFiles.length) {
       setError('Please choose an image first.');
       return;
     }
@@ -192,33 +234,44 @@ export default function Dashboard() {
     setMediaBusy(true);
     setError('');
 
-    const fd = new FormData();
-    fd.append('file', mediaFile);
-    fd.append('slot', mediaSlot);
-    fd.append('label', mediaSlot.replaceAll('-', ' '));
+    try {
+      const isProductImage = mediaSlot.startsWith('product-image:');
+      const filesToUpload = isProductImage ? mediaFiles : mediaFiles.slice(0, 1);
 
-    const r = await fetch('/api/media', {
-      method: 'POST',
-      body: fd,
-    });
+      for (const [index, file] of filesToUpload.entries()) {
+        const fd = new FormData();
+        fd.append('file', file);
+        // A unique slot for every product photo prevents overwriting older photos.
+        const slot = isProductImage
+          ? `${mediaSlot}:${crypto.randomUUID()}`
+          : mediaSlot;
+        fd.append('slot', slot);
+        fd.append('label', isProductImage
+          ? `Product photo: ${file.name}`
+          : mediaSlot.replaceAll('-', ' '));
 
-    const d = await r.json();
+        const r = await fetch('/api/media', {
+          method: 'POST',
+          body: fd,
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          throw new Error(
+            `Image ${index + 1} (${file.name}): ${d.error || 'Upload failed'}`
+          );
+        }
+      }
 
-    if (!r.ok) {
-      setError(d.error || 'Upload failed');
-    } else {
-      setMediaFile(null);
-
-      const el = document.getElementById(
-        'media-file'
-      ) as HTMLInputElement | null;
-
+      setMediaFiles([]);
+      const el = document.getElementById('media-file') as HTMLInputElement | null;
       if (el) el.value = '';
-
       await load();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Upload failed');
+      await load();
+    } finally {
+      setMediaBusy(false);
     }
-
-    setMediaBusy(false);
   }
 
   async function deleteMedia(slot: string) {
@@ -352,6 +405,52 @@ export default function Dashboard() {
     await load();
   }
 
+  async function generateReviewLink(orderItemId: string) {
+    setReviewBusy(orderItemId);
+    setError('');
+    try {
+      const response = await fetch('/api/reviews/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderItemId }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.reviewUrl) {
+        throw new Error(data.error || 'Could not generate review link.');
+      }
+      setReviewLinks((prev) => ({ ...prev, [orderItemId]: data.reviewUrl }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not generate review link.');
+    } finally {
+      setReviewBusy(null);
+    }
+  }
+
+  async function changeReviewStatus(reviewId: string, value: 'Approved' | 'Rejected') {
+    setReviewBusy(reviewId);
+    setError('');
+    try {
+      const response = await fetch('/api/reviews/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, status: value }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Could not update review.');
+      }
+      setReviews((previous) =>
+        previous.map((review) =>
+          review.id === reviewId ? { ...review, status: value } : review
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update review.');
+    } finally {
+      setReviewBusy(null);
+    }
+  }
+
   async function logout() {
     await fetch('/api/admin/login', { method: 'DELETE' });
     router.replace('/admin/login');
@@ -392,7 +491,7 @@ export default function Dashboard() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {(['orders', 'products', 'media', 'design'] as Tab[]).map((t) => (
+        {(['orders', 'products', 'reviews', 'media', 'design'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -564,6 +663,43 @@ export default function Dashboard() {
                               <span className="block text-xs text-gray-500">
                                 PKR {(it.price * it.quantity).toLocaleString()}
                               </span>
+                              {it.variant && (
+                                <span className="block text-xs text-gray-500">Variant: {it.variant}</span>
+                              )}
+                              {o.status === 'Delivered' &&
+                                Date.now() < new Date(o.createdAt).getTime() + 15 * 24 * 60 * 60 * 1000 && (
+                                  <div className="mt-2 space-y-1">
+                                    <button
+                                      type="button"
+                                      disabled={reviewBusy === it.id}
+                                      onClick={() => generateReviewLink(it.id)}
+                                      className="border border-emerald-700 text-emerald-800 rounded px-2 py-1 text-xs disabled:opacity-50"
+                                    >
+                                      {reviewBusy === it.id ? 'Generating...' : 'Generate Review Link'}
+                                    </button>
+                                    {reviewLinks[it.id] && (
+                                      <div className="flex flex-wrap gap-2 items-center">
+                                        <button
+                                          type="button"
+                                          className="text-emerald-800 underline text-xs"
+                                          onClick={() => navigator.clipboard.writeText(reviewLinks[it.id])
+                                            .then(() => alert('Review link copied'))
+                                            .catch(() => setError('Could not copy link.'))}
+                                        >
+                                          Copy Link
+                                        </button>
+                                        <a
+                                          href={`https://wa.me/?text=${encodeURIComponent('Please review your purchase: ' + reviewLinks[it.id])}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-emerald-800 underline text-xs"
+                                        >
+                                          Share on WhatsApp
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                             </div>
                           ))}
                         </td>
@@ -602,6 +738,55 @@ export default function Dashboard() {
             </div>
           )}
 
+          {tab === 'reviews' && (
+            <section className="bg-white border rounded-lg p-5 space-y-4">
+              <div>
+                <h2 className="font-bold text-lg">Customer Reviews</h2>
+                <p className="text-sm text-gray-500">
+                  Reviews appear on the storefront only after approval.
+                </p>
+              </div>
+              {!reviewApiReady && (
+                <p className="text-amber-700 text-sm">Review approval API is not installed yet. We will add it in the next step.</p>
+              )}
+              {reviewApiReady && reviews.length === 0 ? (
+                <p className="text-gray-500 text-sm">No reviews found yet.</p>
+              ) : reviewApiReady ? (
+                <div className="space-y-3">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border rounded-lg p-4 space-y-2">
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <div>
+                          <p className="font-semibold">{review.product.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {review.orderItem.order.customerName} · {review.orderItem.order.orderNumber}
+                          </p>
+                        </div>
+                        <span className="text-sm font-semibold">{review.rating}/5 ★ · {review.status}</span>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{review.comment}</p>
+                      <p className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleString()}</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={reviewBusy === review.id || review.status === 'Approved'}
+                          onClick={() => changeReviewStatus(review.id, 'Approved')}
+                          className="bg-emerald-800 text-white rounded px-3 py-2 text-sm disabled:opacity-40"
+                        >Approve</button>
+                        <button
+                          type="button"
+                          disabled={reviewBusy === review.id || review.status === 'Rejected'}
+                          onClick={() => changeReviewStatus(review.id, 'Rejected')}
+                          className="border border-red-500 text-red-700 rounded px-3 py-2 text-sm disabled:opacity-40"
+                        >Reject</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          )}
+
           {tab === 'products' && (
             <div className="space-y-6">
               <form
@@ -624,6 +809,102 @@ export default function Dashboard() {
                     className="border rounded p-2"
                   />
                 ))}
+
+                <label className="flex items-center gap-2 sm:col-span-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={form.enableVariants}
+                    onChange={(e) =>
+                      setForm({ ...form, enableVariants: e.target.checked })
+                    }
+                  />
+                  Enable Variants
+                </label>
+
+                {form.enableVariants && (
+                  <div className="sm:col-span-2 border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">Product Variants</h3>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            variants: [...form.variants, { name: '', price: '' }],
+                          })
+                        }
+                        className="border border-emerald-800 text-emerald-900 rounded px-3 py-1 text-sm"
+                      >
+                        + Add Variant
+                      </button>
+                    </div>
+
+                    {form.variants.map((variant, index) => (
+                      <div
+                        key={index}
+                        className="grid sm:grid-cols-2 gap-2 items-center"
+                      >
+                        <input
+                          value={variant.name}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              variants: form.variants.map((item, i) =>
+                                i === index
+                                  ? { ...item, name: e.target.value }
+                                  : item
+                              ),
+                            })
+                          }
+                          placeholder={`Variant ${index + 1} name`}
+                          required={form.enableVariants}
+                          className="border rounded p-2"
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={variant.price}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                variants: form.variants.map((item, i) =>
+                                  i === index
+                                    ? { ...item, price: e.target.value }
+                                    : item
+                                ),
+                              })
+                            }
+                            placeholder="Variant price (PKR)"
+                            required={form.enableVariants}
+                            className="border rounded p-2 w-full"
+                          />
+                          {form.variants.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm({
+                                  ...form,
+                                  variants: form.variants.filter(
+                                    (_, i) => i !== index
+                                  ),
+                                })
+                              }
+                              className="text-red-600 border border-red-200 rounded px-3"
+                              title="Remove variant"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-500">
+                      Har variant ka apna naam aur price enter karein.
+                    </p>
+                  </div>
+                )}
 
                 <button className="bg-emerald-900 text-white rounded p-3 sm:col-span-2">
                   Save Product
@@ -719,7 +1000,17 @@ export default function Dashboard() {
                       onChange={(e) =>
                         setEditingProduct({
                           ...editingProduct,
-                          images: JSON.stringify([e.target.value]),
+                          images: JSON.stringify([
+                            e.target.value,
+                            ...(() => {
+                              try {
+                                const all = JSON.parse(editingProduct.images || '[]');
+                                return Array.isArray(all) ? all.slice(1) : [];
+                              } catch {
+                                return [];
+                              }
+                            })(),
+                          ]),
                         })
                       }
                       className="border rounded p-2 w-full mt-1"
@@ -846,7 +1137,9 @@ export default function Dashboard() {
                 className="bg-white border rounded-lg p-5 space-y-3"
               >
                 <h2 className="font-bold text-lg">
-                  Upload / Replace Website Image
+                  {mediaSlot.startsWith('product-image:')
+                    ? 'Add Product Images'
+                    : 'Upload / Replace Website Image'}
                 </h2>
 
                 <p className="text-sm text-gray-500">
@@ -859,7 +1152,12 @@ export default function Dashboard() {
 
                 <select
                   value={mediaSlot}
-                  onChange={(e) => setMediaSlot(e.target.value)}
+                  onChange={(e) => {
+                    setMediaSlot(e.target.value);
+                    setMediaFiles([]);
+                    const el = document.getElementById('media-file') as HTMLInputElement | null;
+                    if (el) el.value = '';
+                  }}
                   className="border rounded p-2 w-full"
                 >
                   <option value="site-logo">Website Logo</option>
@@ -881,18 +1179,29 @@ export default function Dashboard() {
                 <input
                   id="media-file"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  multiple={mediaSlot.startsWith('product-image:')}
                   onChange={(e) =>
-                    setMediaFile(e.target.files?.[0] || null)
+                    setMediaFiles(Array.from(e.target.files || []))
                   }
                   className="block w-full border rounded p-2"
                 />
 
+                {mediaSlot.startsWith('product-image:') && (
+                  <p className="text-sm text-gray-600">
+                    Multiple photos select kar sakte hain. Nayi photos purani photos ko replace nahi karengi.
+                  </p>
+                )}
+
                 <button
-                  disabled={mediaBusy}
+                  disabled={mediaBusy || !mediaFiles.length}
                   className="bg-emerald-900 text-white rounded px-5 py-3 disabled:opacity-50"
                 >
-                  {mediaBusy ? 'Uploading...' : 'Upload / Replace Image'}
+                  {mediaBusy
+                    ? 'Uploading...'
+                    : mediaSlot.startsWith('product-image:')
+                      ? `Add ${mediaFiles.length || ''} Product Image${mediaFiles.length === 1 ? '' : 's'}`
+                      : 'Upload / Replace Image'}
                 </button>
               </form>
 

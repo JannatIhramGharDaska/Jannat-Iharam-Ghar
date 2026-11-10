@@ -113,7 +113,13 @@ export async function POST(req: Request) {
     );
 
     const products = await prisma.product.findMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        isArchived: false,
+      },
+      include: {
+        variants: true,
+      },
     });
 
     if (products.length !== ids.length) {
@@ -137,25 +143,83 @@ export async function POST(req: Request) {
         !p ||
         !Number.isInteger(q) ||
         q < 1 ||
-        q > 100 ||
-        p.stock < q
+        q > 100
       ) {
+        throw new Error('Invalid product or quantity.');
+      }
+
+      const variantName = i.variant
+        ? String(i.variant).trim()
+        : null;
+
+      let itemPrice = Number(p.salePrice ?? p.price);
+
+      if (p.variants.length > 0) {
+        if (!variantName) {
+          throw new Error(
+            'Please select a variant for ' + p.name
+          );
+        }
+
+        const selectedVariant = p.variants.find(
+          (v) => v.name === variantName
+        );
+
+        if (!selectedVariant) {
+          throw new Error(
+            'Selected variant is unavailable for ' + p.name
+          );
+        }
+
+        itemPrice = Number(
+          selectedVariant.price ?? p.price
+        );
+      } else if (variantName) {
         throw new Error(
-          'Insufficient stock for ' + (p?.name || 'product')
+          'Selected variant is unavailable for ' + p.name
+        );
+      }
+
+      if (p.stock < q) {
+        throw new Error(
+          'Insufficient stock for ' + p.name
         );
       }
 
       return {
         productId: p.id,
         quantity: q,
-        price: Number(p.salePrice ?? p.price),
-        variant: i.variant ? String(i.variant) : null,
+        price: itemPrice,
+        variant: variantName,
       };
     });
 
+    // Check combined quantities for the same product.
+    const quantitiesByProduct = new Map<string, number>();
+
+    for (const item of items) {
+      quantitiesByProduct.set(
+        item.productId,
+        (quantitiesByProduct.get(item.productId) ?? 0) +
+          item.quantity
+      );
+    }
+
+    for (const [productId, quantity] of quantitiesByProduct) {
+      const product = products.find(
+        (p) => p.id === productId
+      );
+
+      if (!product || product.stock < quantity) {
+        throw new Error(
+          'Insufficient stock for ' +
+            (product?.name || 'product')
+        );
+      }
+    }
+
     const subtotal = items.reduce(
-      (sum: number, item: PreparedItem) =>
-        sum + item.price * item.quantity,
+      (sum, item) => sum + item.price * item.quantity,
       0
     );
 
@@ -171,13 +235,23 @@ export async function POST(req: Request) {
       'JIG-' + Date.now().toString().slice(-8);
 
     const order = await prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        await tx.product.update({
-          where: { id: item.productId },
+      for (const [productId, quantity] of quantitiesByProduct) {
+        const updated = await tx.product.updateMany({
+          where: {
+            id: productId,
+            isArchived: false,
+            stock: { gte: quantity },
+          },
           data: {
-            stock: { decrement: item.quantity },
+            stock: { decrement: quantity },
           },
         });
+
+        if (updated.count !== 1) {
+          throw new Error(
+            'Insufficient stock. Please refresh your cart.'
+          );
+        }
       }
 
       return tx.order.create({

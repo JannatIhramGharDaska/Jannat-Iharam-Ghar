@@ -1,4 +1,3 @@
-
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -38,6 +37,7 @@ model Product {
   category    Category      @relation(fields: [categoryId], references: [id])
   variants    Variant[]
   orderItems  OrderItem[]
+  reviews     Review[]
   featured    Boolean       @default(false)
   isArchived  Boolean       @default(false)
   createdAt   DateTime      @default(now())
@@ -77,14 +77,41 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  variant   String?
-  quantity  Int
-  price     Float
+  id           String        @id @default(uuid())
+  orderId      String
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product       @relation(fields: [productId], references: [id])
+  variant      String?
+  quantity     Int
+  price        Float
+  review       Review?
+  reviewInvite ReviewInvite?
+}
+
+model Review {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  orderItemId String    @unique
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  rating      Int
+  comment     String
+  status      String    @default("Pending")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([productId, status])
+}
+
+model ReviewInvite {
+  id          String    @id @default(uuid())
+  orderItemId String    @unique
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
 }
 
 model MediaAsset {

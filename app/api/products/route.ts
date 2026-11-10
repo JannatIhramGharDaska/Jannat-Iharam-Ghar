@@ -56,6 +56,7 @@ export async function POST(req: Request) {
       !b.name ||
       !b.sku ||
       !Number.isFinite(Number(b.price)) ||
+      Number(b.price) < 0 ||
       !b.category
     ) {
       return NextResponse.json(
@@ -81,6 +82,16 @@ export async function POST(req: Request) {
       if (!String(variant.name || '').trim()) {
         return NextResponse.json(
           { error: 'Every variant must have a name.' },
+          { status: 400 }
+        );
+      }
+
+      if (
+        !Number.isFinite(Number(variant.price)) ||
+        Number(variant.price) < 0
+      ) {
+        return NextResponse.json(
+          { error: 'Every variant must have a valid price.' },
           { status: 400 }
         );
       }
@@ -135,15 +146,14 @@ export async function POST(req: Request) {
         variants: {
           create: variants.map((variant: any) => ({
             name: String(variant.name).trim(),
+            price: Number(variant.price),
             stock:
               stockMode === 'VARIANT'
                 ? Math.max(0, Number(variant.stock || 0))
                 : 0,
             sizeMl:
               stockMode === 'ML' ? Number(variant.sizeMl) : null,
-            images: JSON.stringify(
-              Array.isArray(variant.images) ? variant.images : []
-            ),
+            images: JSON.stringify([]),
           })),
         },
       },
