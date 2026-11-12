@@ -1,4 +1,5 @@
-export const WHATSAPP_NUMBER = "923454681308"; // Replace with your actual WhatsApp Business Number
+
+export const WHATSAPP_NUMBER = "923451840478";
 
 export function formatWhatsAppMessage(order: {
   orderNumber: string;

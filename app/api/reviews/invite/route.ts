@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'crypto';
 import { prisma } from '@/lib/prisma';
@@ -93,8 +94,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Review window: 15 days from the original order placement date.
-    // Regenerating a link never extends this deadline.
+    // Review expires 15 days after original order placement.
     const expiresAt = new Date(
       orderItem.order.createdAt.getTime() + 15 * 24 * 60 * 60 * 1000
     );
@@ -110,18 +110,27 @@ export async function POST(req: Request) {
 
     const token = randomBytes(32).toString('hex');
     const tokenHash = hashToken(token);
+    const generatedAt = new Date();
 
-    await prisma.reviewInvite.upsert({
+    const invite = await prisma.reviewInvite.upsert({
       where: { orderItemId },
       update: {
         tokenHash,
         expiresAt,
         usedAt: null,
+        generationCount: { increment: 1 },
+        lastGeneratedAt: generatedAt,
       },
       create: {
         orderItemId,
         tokenHash,
         expiresAt,
+        generationCount: 1,
+        lastGeneratedAt: generatedAt,
+      },
+      select: {
+        generationCount: true,
+        lastGeneratedAt: true,
       },
     });
 
@@ -132,6 +141,8 @@ export async function POST(req: Request) {
       reviewUrl,
       productName: orderItem.product.name,
       expiresAt: expiresAt.toISOString(),
+      generationCount: invite.generationCount,
+      lastGeneratedAt: invite.lastGeneratedAt?.toISOString(),
     });
   } catch (error) {
     console.error('Review invitation error:', error);

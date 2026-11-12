@@ -2,6 +2,8 @@
 'use client';
 
 import WebsiteEditor from './WebsiteEditor';
+import SalesAnalytics from './SalesAnalytics';
+import CouponManager from './CouponManager';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -34,6 +36,8 @@ type Order = {
   deliveryFee: number;
   total: number;
   status: string;
+  isNew?: boolean;
+  adminNotes?: string | null;
   trackingNumber?: string | null;
   shippingProvider?: string | null;
   createdAt: string;
@@ -46,6 +50,11 @@ type Order = {
       name: string;
       sku: string;
     };
+    reviewInvite?: {
+      generationCount: number;
+      lastGeneratedAt: string | null;
+    } | null;
+    review?: { id: string } | null;
   }>;
 };
 
@@ -70,12 +79,12 @@ type Review = {
   };
 };
 
-type Tab = 'orders' | 'products' | 'media' | 'design' | 'reviews';
+type Tab = 'analytics' | 'orders' | 'products' | 'media' | 'design' | 'reviews' | 'coupons';
 
 export default function Dashboard() {
   const router = useRouter();
 
-  const [tab, setTab] = useState<Tab>('orders');
+  const [tab, setTab] = useState<Tab>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -466,6 +475,7 @@ export default function Dashboard() {
         throw new Error(data.error || 'Could not generate review link.');
       }
       setReviewLinks((prev) => ({ ...prev, [orderItemId]: data.reviewUrl }));
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not generate review link.');
     } finally {
@@ -517,8 +527,58 @@ export default function Dashboard() {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
 
+  const newOrdersCount = orders.filter((order) => order.isNew).length;
+
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8">
+    <main className="jig-admin min-h-screen max-w-none bg-[#080808] text-[#F5E8C8] px-4 sm:px-6 lg:px-10 py-8">
+      <style>{`
+        .jig-admin { color-scheme: dark; }
+        .jig-admin .bg-white, .jig-admin .bg-gray-50, .jig-admin .bg-gray-200,
+        .jig-admin .bg-amber-50, .jig-admin .bg-emerald-50 { background-color: #171717 !important; }
+        .jig-admin .bg-amber-100 { background-color: #3b2b11 !important; }
+        .jig-admin .bg-green-100 { background-color: #143525 !important; }
+        .jig-admin .bg-red-100 { background-color: #3a1919 !important; }
+        .jig-admin .text-emerald-950, .jig-admin .text-emerald-900,
+        .jig-admin .text-emerald-800, .jig-admin .text-emerald-700,
+        .jig-admin .text-amber-900, .jig-admin .text-amber-800 { color: #f3cf75 !important; }
+        .jig-admin .text-gray-900, .jig-admin .text-gray-800,
+        .jig-admin .text-gray-700, .jig-admin .text-gray-600 { color: #d9d0c0 !important; }
+        .jig-admin .text-gray-500, .jig-admin .text-gray-400 { color: #aaa194 !important; }
+        .jig-admin .border-gray-200, .jig-admin .border-gray-300,
+        .jig-admin .border-amber-200, .jig-admin .border-amber-300,
+        .jig-admin .border-emerald-200 { border-color: #71582c !important; }
+        .jig-admin input:not([type=checkbox]):not([type=file]),
+        .jig-admin select, .jig-admin textarea {
+          background: #0e0e0e !important; color: #f8e9c5 !important;
+          border: 1px solid #87672e !important; border-radius: 9px;
+          padding: 10px; max-width: 100%;
+        }
+        .jig-admin input::placeholder, .jig-admin textarea::placeholder { color: #978c79; }
+        .jig-admin input:focus, .jig-admin select:focus, .jig-admin textarea:focus {
+          outline: 2px solid #e2b64b; outline-offset: 1px;
+        }
+        .jig-admin input[type=file] { color: #e9d9b5; background: #161616; border-color: #87672e; }
+        .jig-admin input[type=checkbox] { accent-color: #d4a63c; }
+        .jig-admin option { background: #141414; color: #f8e9c5; }
+        .jig-admin .bg-emerald-900, .jig-admin .bg-emerald-800,
+        .jig-admin .bg-emerald-700 { background: linear-gradient(100deg,#b77b1d,#ffe08a,#bf8b2c) !important; color: #17110a !important; font-weight: 700; }
+        .jig-admin button { transition: filter .18s, background-color .18s; }
+        .jig-admin button:hover:not(:disabled) { filter: brightness(1.15); }
+        .jig-admin button:disabled { opacity: .45; cursor: not-allowed; }
+        .jig-admin table { border-collapse: separate; border-spacing: 0; min-width: 760px; }
+        .jig-admin th { color: #f7d786; background: #211a10; font-weight: 700; white-space: nowrap; }
+        .jig-admin td { color: #e5dbca; border-color: #473820; }
+        .jig-admin tr { border-color: #473820; }
+        .jig-admin tbody tr:hover { background: #211c14; }
+        .jig-admin section, .jig-admin form { border-color: #6b512a; }
+        .jig-admin .rounded-lg.bg-white, .jig-admin .rounded-lg.bg-amber-50,
+        .jig-admin section.bg-white, .jig-admin form.bg-white {
+          border: 1px solid #70562d !important; box-shadow: 0 10px 28px #0005;
+        }
+        .jig-admin h1, .jig-admin h2 { color: #f3cf75; }
+        .jig-admin h1 { background: linear-gradient(90deg,#fff0a5,#e9ba49,#b77b1d); background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .jig-admin a { color: #f2cf7a; }
+      `}</style>
       <div className="flex flex-wrap justify-between gap-3 items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-emerald-950">
@@ -531,26 +591,28 @@ export default function Dashboard() {
 
         <button
           onClick={logout}
-          className="border rounded px-4 py-2"
+          className="border border-[#a57c35] text-[#f5d480] bg-[#171717] rounded-lg px-4 py-2"
         >
           Logout
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {(['orders', 'products', 'reviews', 'media', 'design'] as Tab[]).map((t) => (
+        {(['analytics', 'orders', 'products', 'reviews', 'coupons', 'media', 'design'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded capitalize ${
-              tab === t ? 'bg-emerald-900 text-white' : 'bg-gray-200'
+            className={`px-4 py-2 rounded-lg capitalize transition-all ${
+              tab === t ? 'bg-gradient-to-r from-[#b77b1d] via-[#ffe08a] to-[#bf8b2c] text-[#17110a] font-bold' : 'bg-[#1c1c1c] text-[#e7cc8a] border border-[#72572b]'
             }`}
           >
             {t === 'media'
               ? 'Image Management'
               : t === 'design'
                 ? 'Website Editor'
-                : t}
+                : t === 'orders'
+                  ? `Orders${newOrdersCount > 0 ? ` (${newOrdersCount} NEW)` : ''}`
+                  : t}
           </button>
         ))}
       </div>
@@ -561,285 +623,64 @@ export default function Dashboard() {
         <p>Loading...</p>
       ) : (
         <>
+          {tab === 'analytics' && <SalesAnalytics orders={orders} />}
+          {tab === 'coupons' && <CouponManager />}
+
           {tab === 'orders' && (
-            <div className="bg-white border rounded-lg overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left">
-                    {[
-                      'Order / Date',
-                      'Customer',
-                      'Phone',
-                      'Delivery Address',
-                      'City',
-                      'Payment',
-                      'Payment Screenshot',
-                      'Payment Status',
-                      'Items',
-                      'Total',
-                      'Order Status',
-                      'Shipping Details',
-                    ].map((x) => (
-                      <th key={x} className="p-3">
-                        {x}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {orders.map((o) => {
-                    const isCOD =
-                      o.paymentMethod === 'Cash on Delivery (COD)';
-
-                    const currentPaymentStatus = isCOD
-                      ? 'Not Required'
-                      : o.paymentStatus || 'Pending';
-
-                    return (
-                      <tr key={o.id} className="border-t align-top">
-                        <td className="p-3 whitespace-nowrap">
-                          {o.orderNumber}
-                          <span className="block text-xs text-gray-500">
-                            {new Date(o.createdAt).toLocaleString()}
-                          </span>
-                        </td>
-
-                        <td className="p-3">{o.customerName}</td>
-
-                        <td className="p-3 whitespace-nowrap">
-                          {o.customerPhone}
-                        </td>
-
-                        <td className="p-3 min-w-48">
-                          {o.deliveryAddress}
-                          {o.orderNotes && (
-                            <span className="block text-xs text-gray-500">
-                              Note: {o.orderNotes}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="p-3">{o.city}</td>
-
-                        <td className="p-3 min-w-32">
-                          {o.paymentMethod}
-                        </td>
-
-                        <td className="p-3 min-w-36">
-                          {o.paymentScreenshot ? (
-                            <div className="space-y-2">
-                              <a
-                                href={o.paymentScreenshot}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
-                              >
-                                <img
-                                  src={o.paymentScreenshot}
-                                  alt="Customer payment screenshot"
-                                  className="w-28 h-24 object-cover rounded border"
-                                />
-                              </a>
-
-                              <a
-                                href={o.paymentScreenshot}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-emerald-800 underline text-xs"
-                              >
-                                View Full Screenshot
-                              </a>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">
-                              {isCOD ? 'Not Required' : 'No Screenshot'}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="p-3 min-w-40">
-                          {isCOD ? (
-                            <span className="text-gray-500 font-medium">
-                              Not Required
-                            </span>
-                          ) : (
-                            <div className="space-y-2">
-                              <span
-                                className={`inline-block rounded px-2 py-1 text-xs font-semibold ${
-                                  currentPaymentStatus === 'Verified'
-                                    ? 'bg-green-100 text-green-800'
-                                    : currentPaymentStatus === 'Rejected'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-amber-100 text-amber-800'
-                                }`}
-                              >
-                                {currentPaymentStatus}
-                              </span>
-
-                              <div className="flex flex-col gap-1">
-                                <button
-                                  type="button"
-                                  disabled={currentPaymentStatus === 'Verified'}
-                                  onClick={() =>
-                                    updatePaymentStatus(o.id, 'Verified')
-                                  }
-                                  className="bg-emerald-700 text-white rounded px-2 py-1 text-xs disabled:opacity-40"
-                                >
-                                  Verify Payment
-                                </button>
-
-                                <button
-                                  type="button"
-                                  disabled={currentPaymentStatus === 'Rejected'}
-                                  onClick={() =>
-                                    updatePaymentStatus(o.id, 'Rejected')
-                                  }
-                                  className="bg-red-600 text-white rounded px-2 py-1 text-xs disabled:opacity-40"
-                                >
-                                  Reject Payment
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="p-3 min-w-48">
-                          {o.items?.map((it, i) => (
-                            <div key={it.id || i} className="mb-1">
-                              {it.product?.name || 'Product'} × {it.quantity}
-                              <span className="block text-xs text-gray-500">
-                                PKR {(it.price * it.quantity).toLocaleString()}
-                              </span>
-                              {it.variant && (
-                                <span className="block text-xs text-gray-500">Variant: {it.variant}</span>
-                              )}
-                              {o.status === 'Delivered' &&
-                                Date.now() < new Date(o.createdAt).getTime() + 15 * 24 * 60 * 60 * 1000 && (
-                                  <div className="mt-2 space-y-1">
-                                    <button
-                                      type="button"
-                                      disabled={reviewBusy === it.id}
-                                      onClick={() => generateReviewLink(it.id)}
-                                      className="border border-emerald-700 text-emerald-800 rounded px-2 py-1 text-xs disabled:opacity-50"
-                                    >
-                                      {reviewBusy === it.id ? 'Generating...' : 'Generate Review Link'}
-                                    </button>
-                                    {reviewLinks[it.id] && (
-                                      <div className="flex flex-wrap gap-2 items-center">
-                                        <button
-                                          type="button"
-                                          className="text-emerald-800 underline text-xs"
-                                          onClick={() => navigator.clipboard.writeText(reviewLinks[it.id])
-                                            .then(() => alert('Review link copied'))
-                                            .catch(() => setError('Could not copy link.'))}
-                                        >
-                                          Copy Link
-                                        </button>
-                                        <a
-                                          href={`https://wa.me/?text=${encodeURIComponent('Please review your purchase: ' + reviewLinks[it.id])}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-emerald-800 underline text-xs"
-                                        >
-                                          Share on WhatsApp
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                            </div>
-                          ))}
-                        </td>
-
-                        <td className="p-3 whitespace-nowrap">
-                          PKR {o.total.toLocaleString()}
-                        </td>
-
-                        <td className="p-3 min-w-32">
-                          <select
-                            value={o.status}
-                            onChange={(e) => status(o.id, e.target.value)}
-                            className="border rounded p-1"
-                          >
-                            {[
-                              'Pending',
-                              'Confirmed',
-                              'Processing',
-                              'Shipped',
-                              'Delivered',
-                              'Cancelled',
-                            ].map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
-                        </td>
-
-                        <td className="p-3 min-w-56">
-                          <div className="space-y-2">
-                            <select
-                              value={shippingDrafts[o.id]?.shippingProvider ?? o.shippingProvider ?? ''}
-                              onChange={(e) =>
-                                setShippingDrafts((previous) => ({
-                                  ...previous,
-                                  [o.id]: {
-                                    trackingNumber: previous[o.id]?.trackingNumber ?? o.trackingNumber ?? '',
-                                    shippingProvider: e.target.value,
-                                  },
-                                }))
-                              }
-                              className="border rounded p-2 w-full"
-                              aria-label={`Shipping provider for ${o.orderNumber}`}
-                            >
-                              <option value="">Select courier</option>
-                              {['TCS', 'Leopards', 'M&P', 'PostEx', 'Pakistan Post', 'Other'].map((provider) => (
-                                <option key={provider} value={provider}>{provider}</option>
-                              ))}
-                            </select>
-
-                            <input
-                              type="text"
-                              value={shippingDrafts[o.id]?.trackingNumber ?? o.trackingNumber ?? ''}
-                              onChange={(e) =>
-                                setShippingDrafts((previous) => ({
-                                  ...previous,
-                                  [o.id]: {
-                                    trackingNumber: e.target.value,
-                                    shippingProvider: previous[o.id]?.shippingProvider ?? o.shippingProvider ?? '',
-                                  },
-                                }))
-                              }
-                              placeholder="Tracking number"
-                              maxLength={100}
-                              className="border rounded p-2 w-full"
-                              aria-label={`Tracking number for ${o.orderNumber}`}
-                            />
-
-                            <button
-                              type="button"
-                              onClick={() => saveShippingDetails(o)}
-                              disabled={shippingBusy === o.id}
-                              className="bg-emerald-800 text-white rounded px-3 py-2 text-xs w-full disabled:opacity-50"
-                            >
-                              {shippingBusy === o.id ? 'Saving...' : 'Save Tracking Details'}
-                            </button>
-
-                            {o.trackingNumber && o.shippingProvider && (
-                              <p className="text-xs text-emerald-800">
-                                Saved: {o.shippingProvider} · {o.trackingNumber}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {!orders.length && (
-                <p className="p-5 text-gray-500">No orders yet.</p>
+            <div className="space-y-4">
+              {newOrdersCount > 0 && (
+                <div className="rounded-xl border border-[#a57c35] bg-[#211a10] px-4 py-3 text-[#f3cf75]">
+                  <strong>{newOrdersCount} new order{newOrdersCount === 1 ? '' : 's'} received.</strong>
+                  <span className="ml-1">Open an order to view its details and clear its NEW status.</span>
+                </div>
               )}
+
+              <div className="grid gap-3">
+                {orders.map((o) => (
+                  <div
+                    key={o.id}
+                    className="rounded-xl border border-[#70562d] bg-[#171717] p-4 shadow-lg shadow-black/20"
+                  >
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                      <div className="min-w-0">
+                        <p className="mb-1 text-xs text-[#aaa194]">Order Number</p>
+                        <p className="break-words font-semibold text-[#f3cf75]">{o.orderNumber}</p>
+                        {o.isNew && (
+                          <span className="mt-1 inline-flex rounded-full bg-[#3b2b11] px-2 py-0.5 text-[10px] font-bold text-[#ffe08a]">NEW</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-xs text-[#aaa194]">Customer Name</p>
+                        <p className="break-words text-[#f5e8c8]">{o.customerName}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-xs text-[#aaa194]">Phone Number</p>
+                        <p className="break-words text-[#f5e8c8]">{o.customerPhone}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-xs text-[#aaa194]">City</p>
+                        <p className="break-words text-[#f5e8c8]">{o.city}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-xs text-[#aaa194]">Payment Method</p>
+                        <p className="break-words text-[#f5e8c8]">{o.paymentMethod}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end border-t border-[#473820] pt-4">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/admin/orders/${o.id}`)}
+                        className="rounded-lg bg-gradient-to-r from-[#b77b1d] via-[#ffe08a] to-[#bf8b2c] px-5 py-2.5 text-sm font-bold text-[#17110a]"
+                      >
+                        View Full Details →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {!orders.length && (
+                  <p className="rounded-xl border border-[#70562d] bg-[#171717] p-5 text-[#aaa194]">No orders yet.</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -1165,7 +1006,7 @@ export default function Dashboard() {
                     <button
                       type="button"
                       onClick={() => setEditingProduct(null)}
-                      className="border rounded px-4 py-2"
+                      className="border border-[#a57c35] text-[#f5d480] bg-[#171717] rounded-lg px-4 py-2"
                     >
                       Cancel
                     </button>
@@ -1198,7 +1039,7 @@ export default function Dashboard() {
                         <td className="p-3">{p.name}</td>
                         <td className="p-3">{p.categoryName}</td>
                         <td className="p-3">
-                          PKR {p.price.toLocaleString()}
+                          PKR {p.price.toLocaleString()} /-
                         </td>
                         <td className="p-3">{p.stock}</td>
                         <td className="p-3">

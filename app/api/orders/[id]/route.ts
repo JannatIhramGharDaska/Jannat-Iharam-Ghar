@@ -3,6 +3,66 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isAdmin } from '@/lib/auth';
 
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await isAdmin())) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const { id } = await params;
+
+    const existing = await prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
+    const order = await prisma.order.update({
+      where: { id },
+      data: { isNew: false },
+      include: {
+        items: {
+          include: {
+            product: true,
+            review: true,
+            reviewInvite: {
+              select: {
+                generationCount: true,
+                lastGeneratedAt: true,
+                expiresAt: true,
+                usedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      { order },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (error) {
+    console.error('Order details error:', error);
+
+    return NextResponse.json(
+      { error: 'Could not load order details.' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -18,7 +78,14 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    const { status, paymentStatus, trackingNumber, shippingProvider } = body;
+    const {
+      status,
+      paymentStatus,
+      trackingNumber,
+      shippingProvider,
+      adminNotes,
+      isNew,
+    } = body;
 
     const orderExists = await prisma.order.findUnique({
       where: { id },
@@ -40,6 +107,8 @@ export async function PATCH(
       paymentStatus?: string;
       trackingNumber?: string | null;
       shippingProvider?: string | null;
+      adminNotes?: string | null;
+      isNew?: boolean;
     } = {};
 
     if (status !== undefined) {
@@ -101,13 +170,53 @@ export async function PATCH(
         shippingProvider.length > 100
       ) {
         return NextResponse.json(
-          { error: 'Valid tracking number and shipping provider are required.' },
+          {
+            error: 'Valid tracking number and shipping provider are required.',
+          },
           { status: 400 }
         );
       }
 
       data.trackingNumber = trackingNumber.trim();
       data.shippingProvider = shippingProvider.trim();
+    }
+
+    if (adminNotes !== undefined) {
+      if (
+        adminNotes !== null &&
+        typeof adminNotes !== 'string'
+      ) {
+        return NextResponse.json(
+          { error: 'Invalid admin notes.' },
+          { status: 400 }
+        );
+      }
+
+      if (
+        typeof adminNotes === 'string' &&
+        adminNotes.length > 5000
+      ) {
+        return NextResponse.json(
+          { error: 'Admin notes cannot exceed 5000 characters.' },
+          { status: 400 }
+        );
+      }
+
+      data.adminNotes =
+        typeof adminNotes === 'string'
+          ? adminNotes.trim()
+          : null;
+    }
+
+    if (isNew !== undefined) {
+      if (typeof isNew !== 'boolean') {
+        return NextResponse.json(
+          { error: 'Invalid new-order flag.' },
+          { status: 400 }
+        );
+      }
+
+      data.isNew = isNew;
     }
 
     if (Object.keys(data).length === 0) {

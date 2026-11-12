@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isAdmin } from '@/lib/auth';
+import { validateCoupon } from '@/lib/coupon';
 
 type OrderItemInput = {
   productId: string;
@@ -50,7 +51,16 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     include: {
       items: {
-        include: { product: true },
+        include: {
+          product: true,
+          reviewInvite: {
+            select: {
+              generationCount: true,
+              lastGeneratedAt: true,
+            },
+          },
+          review: true,
+        },
       },
     },
   });
@@ -194,7 +204,6 @@ export async function POST(req: Request) {
       };
     });
 
-    // Check combined quantities for the same product.
     const quantitiesByProduct = new Map<string, number>();
 
     for (const item of items) {
@@ -224,8 +233,11 @@ export async function POST(req: Request) {
     );
 
     const deliveryFee = 200;
-    const codCharges = isCOD ? 50 : 0;
-    const total = subtotal + deliveryFee + codCharges;
+    const codCharges = isCOD ? 70 : 0;
+    const couponCode = String(b.couponCode || '').trim().toUpperCase();
+    const couponResult = couponCode ? await validateCoupon(couponCode, subtotal) : null;
+    const discount = couponResult?.discount ?? 0;
+    const total = subtotal - discount + deliveryFee + codCharges;
 
     const paymentStatus = isCOD
       ? 'Not Required'
@@ -235,6 +247,18 @@ export async function POST(req: Request) {
       'JIG-' + Date.now().toString().slice(-8);
 
     const order = await prisma.$transaction(async (tx) => {
+      if (couponResult) {
+        const updated = await tx.coupon.updateMany({
+          where: {
+            id: couponResult.coupon.id,
+            active: true,
+            ...(couponResult.coupon.maxUses !== null ? { usedCount: { lt: couponResult.coupon.maxUses } } : {}),
+            ...(couponResult.coupon.expiresAt ? { expiresAt: { gt: new Date() } } : {}),
+          },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (updated.count !== 1) throw new Error('Coupon is no longer available.');
+      }
       for (const [productId, quantity] of quantitiesByProduct) {
         const updated = await tx.product.updateMany({
           where: {
@@ -257,6 +281,7 @@ export async function POST(req: Request) {
       return tx.order.create({
         data: {
           orderNumber,
+          isNew: true,
           customerName,
           customerPhone,
           deliveryAddress,
@@ -269,6 +294,9 @@ export async function POST(req: Request) {
           paymentStatus,
           subtotal,
           deliveryFee,
+          discount,
+          couponCode: couponResult?.coupon.code ?? null,
+          couponId: couponResult?.coupon.id ?? null,
           total,
           items: {
             create: items,
@@ -287,6 +315,7 @@ export async function POST(req: Request) {
         success: true,
         orderNumber: order.orderNumber,
         total: order.total,
+        discount: order.discount,
         items: order.items.map((i) => ({
           name: i.product.name,
           variant: i.variant || undefined,
