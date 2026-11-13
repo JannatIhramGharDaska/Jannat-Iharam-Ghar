@@ -76,6 +76,11 @@ model Order {
   items             OrderItem[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+  couponCode String?
+  couponId   String?
+  coupon     Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  isNew      Boolean @default(false)
+  adminNotes String?
 }
 
 model OrderItem {
@@ -114,6 +119,8 @@ model ReviewInvite {
   expiresAt   DateTime
   usedAt      DateTime?
   createdAt   DateTime  @default(now())
+  generationCount Int       @default(0)
+  lastGeneratedAt DateTime?
 }
 
 model MediaAsset {
@@ -131,4 +138,18 @@ model SiteDesign {
   draft     Json
   published Json
   updatedAt DateTime @updatedAt
+}
+
+model Coupon {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  type        String
+  value       Float
+  minSubtotal Float     @default(0)
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  orders      Order[]
 }
